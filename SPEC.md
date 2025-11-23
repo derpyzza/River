@@ -262,7 +262,7 @@ by default, every file inside a directory is considered to be a single self-cont
 however, if a directory has a `mod.rvr` file, then that directory and every file within the directory is considered to be the same module.
 a directory may not have more than one module or `mod.rvr` file at a time in this way.
 
-a directory that has a `mod.rvr` file in it, which will be referred to as a directory module from here on out, may itself contain subdirectories.
+a directory that has a `mod.rvr` file in it ( which will be referred to as a directory module from here on out ) may itself contain subdirectories.
 these subdirectories are treated as submodules if they themselves are directory modules.
 otherwise, the files within them are treated as file modules and are taken to be in the same module level.
 i.e if a module `foo` has a subdirectory `bar` with three file modules `a`, `b`, and `c`, then those file modules are accessed like `foo.a/b/c` instead of `foo.bar.a/b/c`.
@@ -357,10 +357,12 @@ const TWO_PI = PI * 2;
 # Variable declaration & definition
 
 ```
-    var_def -> 
-          ( "let" | "var" ) iden ( ":" type )? "=" expr ";"
-        | ( "let" | "var" ) iden ( ',' iden )* ( ":" type )? "=" expr ( "," expr )* ";"
-    ;
+    var_decl ->
+          | ("let" | "var") iden ":" data_type ";"
+          | ("let" | "var") iden ( ":" data_type )? "=" LITERAL ";"
+          | ("let" | "var") iden ( "," iden )+ ":" data_type ";"
+          | ("let" | "var") iden ( "," iden )+ ":" data_type  "=" LITERAL ( "," LITERAL )+ ";"
+          ;
     
 ```
 
@@ -380,33 +382,21 @@ x += 10; // x = 20
 let w; // illegal
 let w: int; // legal
 
+// similar to C, variables must be declared to have a value before they can be used
+let x: int;
+x += 1; // Error, x is undefined, assign a value to x.
 
-let
-    x, y, z, w: int,
-    a, b, c, d: float,
-    q, w, e: string
-    ;
+let x = 10;
+x += 1; // x => 11
 
+// each datatype in river has it's own associated default or 'zero' value, which can be assigned like so:
+let x: Object = {...};
 
-// variables are declared to a zero-value be default. each primitive type has it's own zero value
-let x: int;    // x = 0
-let x: bool;   // x = false
-let x: string; // x = ""
+// You can assign multiple variables at once, provided they're all of the same type
+let x, y, z = 10, 20, 30;
+let a, b, c: float = 1.23, 3.14, 6.28;
 
-// if it is desired for a variable to be uninitialized, it can be specified using the `undef` keyword:
-let x: int = undef;
-
-// You can assign multiple variables at once:
-let x = 10, z = "string" , y: float = 3.14;
-
-// you may also declare multiple variables at once:
-let x, y: int, z: float;
-// if initializing variables however, they must all be manually marked with types:
-let x = 10.4, y: int = 10, z = "string"; // illegal
-let x: float = 10.6, y: int = 10, z: string = "string"; // okay
-
-// unless they're the same type:
-let a = 10, b = 20, c: int = 30;
+let e, r = 10, "string"; // illegal
 ```
 
 c output:
@@ -453,7 +443,7 @@ int otherVar = *ptr;
 
 ```rs
 // arrays are defined as such:
-let name: [size] type = value;
+let name: [size]type = value;
 let arr:  [6]int = {1, 2, 3, 4, 5, 6}; // array of six integers
 
 // arrays have their length encoded into them:
@@ -523,7 +513,8 @@ rvrArray arr = (rvrArray){
 
 # Slices
 
-slices are views into contiguous elements in memory, kinda like an array, but they point to memory rather than contain it directly
+slices are views into contiguous elements in memory, similar to an array, but they point to memory rather than contain it directly.
+they are equivalent to what are commonly referred to as fat pointers in C, that is, they are a pointer to some memory paired with the size of that memory.
 basically, slices are the equivalent of doing something like this in C:
 
 ```c
@@ -537,11 +528,10 @@ s.n_elems = 512;
 s._elems  = malloc(sizeof(elem_t) * s.n_elems);
 ```
 
-except instead of doing all that, it's just a self-contained type with a len and a pointer part.
-basically just a fat pointer.
 the length of slices are known at run-time, rather than at compile time like with arrays.
 
 ```rs
+
 
 let arr: [_]u8 = [4, 6, 7, 8, 3, 7];
 let slice: [*]u8 = arr[3..5]; // => [8, 3, 7], len 3
@@ -568,9 +558,8 @@ RVR_SLICE(u8) slice = RVR_SLICE_FROM(arr, 3, 5);
 
 # Strings
 
-river supports three types of string literals:
+river supports types of string literals:
 - normal literals
-- raw literals
 - multiline literals
 
 ```rs
@@ -592,12 +581,11 @@ let str =
 ```
 
 however, if that's unsavoury for you for whatever reason, then river still supports C's style of automatically concatenating string literals next to each other.
-though of-course, in this case you'd have to provide formatting and newlines yourself.
+though of course, in this case you'd have to provide formatting and newlines yourself.
 
 ```c
 let str =
     "hello\n"
-    "\n"
     "this is a multi-line string\n"
     "\n"
     "\tthis is an indentation woo\n";    
@@ -605,63 +593,36 @@ let str =
 
 # Control flow
 
-## If expression
+## If-expression
 ```c
 
-if expression {
+// if-statements in river are actually expressions, and can return values
+let x = if condition {
+    value
+} else condition {
+    value
+};
+
+// non expression format. implicitly returns void
+if condition {
     // do stuff
-} else if other_expression {
+} else if other_condition {
     // do other stuff
 } else {
     // do yet more stuff
 }
-// if statements in river are actually expressions, and can return values
-let x = if expression {
-    value
-} else expression {
-    value
-};
 
-// if expressions don't need parenthesis for their condition unlike in C.
-// instead, the body MUST either be contained in a block, or use the `then` keyword
+// if-expressions don't need parenthesis for their condition unlike in C.
+// instead, the body MUST be contained in a block
 if bool { something() } else { something_else() }
-if bool then something() else something_else()
 
-// when if statements are being used as an expression, i.e they're expected to produce a value, you MUST provide an else clause in case the if check fails:
-let x = if false then 10; // ERROR: x never gets initiated :(
-let x = if false then 10 else 20; // OK
-
-let x = 10 if false else 20;
-
-let x = if bool then 10 else if other_bool then 11 else 23;
-
+// when if-statements are being used as an expression, i.e they're expected to produce a value, you MUST provide an else clause in case the `if` check fails:
+let x = if false { 10 }; // ERROR: x never gets initiated :(
+let x = if false { 10 } else { 20 }; // OK
 
 // else expressions can be used on their own to provide fallback values in case of failure:
 let config = read_config() else default_config;
 // here the else expression only gets triggered if read_config() results a falsey value.
-```
-
-c output:
-```c
-
-// let x = if someCheck() { 10 } else { 20 };
-int x;
-if (someCheck()) {
-    x = 10;
-} else {
-    x = 20;
-}
-
-// let config = read_config() else default_config;
-Config config;
-RvrMaybe _config = read_config();
-if (_config.status == RVR_MAYBE_OK) {
-    config = (Config)_config.ok;
-} else {
-    config = default_config;
-}
-
-    
 ```
 
 ## Switch expression
@@ -670,38 +631,39 @@ if (_config.status == RVR_MAYBE_OK) {
 
 // switch statements are also actually expressions, and can pattern match
 switch x {
-    case do ...,
-    case do {...},
-    // cases don't have implicit fallthrough and a fallthrough must be explicitly forced via use of the `fallthrough` keyword
-    case do {
+    case => ...,
+    case => {...},
+    // cases don't have implicit fallthrough and a fallthrough must be explicitly forced via use of the `nextcase` keyword
+    case => {
         ...
-        fallthrough
+
+
+        nextcase;
     },
     // cases can be chained together
-    case | case | case do {...},
+    case | case | case => {...},
     // default catch case
-    default do {...} 
+    default => {...} 
 }
 
 // when switch cases are being used as expressions, they too must either exhaustively match all cases or provide a default fallback.
 
 fun x_to_string(x: X): string =
     switch x {
-        X_XX    do "XX",
-        X_XXX   do "XXX",
-        X_XXXX  do "XXXX",
-        default do "bleh"
+        X_XX    => "XX",
+        X_XXX   => "XXX",
+        X_XXXX  => "XXXX",
+        default => "bleh"
     };
 ```
 
 ## While loop
-all the loops are statements, and not expressions.
+all the loop constructs are statements, and not expressions.
     
 ```c
 
 // while loops are pretty normal
 while expression { ... };
-while expression do expression;
 
 ```
 
@@ -716,7 +678,7 @@ repeat {
 } until expression;
 
 let x = 0;
-repeat x++ until x == 10;
+repeat { x++ } until x == 10;
 ```
 
 ## For loops
@@ -725,26 +687,24 @@ repeat x++ until x == 10;
 
 // river has the classic C style for loops available to use
 for init;cond;inc {...}
-for init;cond;inc do expression;
 
 // NOTE: should `let` be ignored here? since x is literally being mutated in the for loop? or should the `let` here mean that it's illegal for it to be mutated *within* the loops body only?
 for let x = 0; x < arr.len; x++ {
     io.println("x is: {}", arr[x]);
 }
 
-// this is better written using a for..in loop:
+// the previous snippet is better written using a for..in loop:
 for let x in arr {
     io.println("x is: {}", x);
 }
 
-for let x in [0..10] do io.println("{}", x*x);
+for let x in [0..10] { io.println("{}", x*x) };
 
 
-for item in list do expr
-
+var arr: [20]int = {...};
 // the for-in loop uses pattern matching to destructure collections
-for let index, value in list {
-    do_something();
+for let (index, value) in list {
+    arr[index] = value;
 }
 
 ```
@@ -768,41 +728,27 @@ let f: double = temp as double; // ok 👍
 
 // You can wrap up several datatypes into a big datatype called a struct, just like in C 
 type Vector3 = struct {
-    var x, y, z: f32;   
+    x, y, z: f32;   
 }
 
-// struct values must declare their mutability upfront with the var and let keywords:
 type Entity = struct {
-    let id: string;
-    var pos: Vector3;
-    var health: 
+    id: string;
+    pos: Vector3;
+    health: int; 
 }
 
 var e: Entity = Entity.{
     .id = "newEntity",
     .pos = Vector3.{10, 10, 10},
     .health = 10,
-    };
-
-e.health = 20; // OK ✅
-e.id = "bleh"; // Not OK ❎, will error at compile time
-
-// however, if a struct variable is declared with `let`, you cannot change it's fields at all
-
-let e: Entity = Entity.{
-    .id = "newEntity",
-    .pos = Vector3.{10, 10, 10},
-    .health = 10,
-    };
-e.id = "bleh"; // Not OK ❎, will error at compile time
-e.health = 20; // Also Not OK ❎
+};
 
 // struct field tags
 // you may tag struct fields with a string which attaches meta info to the struct
 type GameObject = struct {
-    var pos: Vec3 `json:"pos"`;
-    var transform: Mat4 `json:"transf"`;
-    var active: bool; // untagged
+    pos: Vec3 `json:"pos"`;
+    transform: Mat4 `json:"transf"`;
+    active: bool; // untagged
 }
 
 ```
@@ -882,7 +828,7 @@ bar(Something.OtherThing); // error
 bar(Something.OtherThing as u16); // OK 👍
 
 // you can get the number of enumerations within an enum by using the count function:
-for c in #count(Colour) do something(c);
+for c in #count(Colour) { something(c); }
 
 // enums can be tagged with a string
 type Colour = enum {
@@ -1027,7 +973,7 @@ if x in [ Colour.Red, Colour.Yellow, Colour.Blue ] {
 
 // NOTES:
 //
-// * Function return types MUST be explicit, unless using = syntax
+// * Function return types MUST be explicit, unless using => syntax
 
 fun sub ( x, y: int ): int {
     return x - y; // returns x - y
@@ -1040,19 +986,19 @@ fun make_point (x, y: int): Point {
 
 // for one-liner functions you can just use an expression or a statement in the body.
 // the return type is inferred:
-fun sub ( x, y: int ) = x - y;
+fun sub ( x, y: int ) => x - y;
 
 // function types can be declared as such:
 // this is a function that has a parameter of type int and returns a value of type bool
 type func = fun(int): bool;
 
-fun smth(i: int, callback: func): bool = not callback(i);
+fun smth(i: int, callback: func): bool => not callback(i);
 
 // Functions support default parameter values
 // If an argument is not passed for a particular parameter,
 // the default value is used instead
 // Note: default values must be at the end of the function signature
-fun Colour_from_rgba( r, g, b: int, a: int = 255 ): Colour =
+fun Colour_from_rgba( r, g, b: int, a: int = 255 ): Colour =>
     Colour {
         r, g, b, a
     };
@@ -1122,7 +1068,7 @@ let name = get_name()?; // => if get_name() returns null then the program panics
 
 // functions are first class in river, so you can pass them around as values
 // TODO: workshop the function callback syntax a bit more
-fun example_func( val: float , func: fun(float, int) ): u32 = {
+fun example_func( val: float , func: fun(float, int) ): u32 => {
     func(val, 20); // => calls the passed-in function
 }
 
@@ -1178,7 +1124,35 @@ println("{}", f.data);
 
 # Memory management
 
+# Reflection / Type introspection
+
+```
+    
+```
+
 # Traits
+```rs
+
+trait Foo {
+    fun Bar();
+}
+
+
+type Thing = struct {
+    ...
+}
+
+
+impl Foo for struct {
+    fun Bar() {
+        io::println("Hi!");
+    }
+}
+
+let s = Thing();
+s.Bar(); // => Hi!
+    
+```
 
 # Generics
 
