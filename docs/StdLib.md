@@ -3,14 +3,66 @@ standard library functions sketch
 # Mem
 ```
 
+struct Allocator() {
+  allocs: usize;
+  data: [*]any;
+}
+
 // used like mem.alloc(int), mem.alloc(char*, 32), mem.alloc(GameObject*, 128, allocator: arena);
 fn alloc(type: T, items = 1, allocator = default): [*]any;
 fn free ([*]any);
+
+let Particles = mem::alloc(Particle, 256, .init = Particle::new());
+
+...
+
+updateParticles(Particles);
+mem::free(Particles);
+
 ```
 
 # Io
 
 # Math
+
+# Array
+```
+// generic dynamically sized array implementation
+
+struct Array$(T: typeid) {
+  data: [*]T;
+  cap: isize;
+}
+
+impl Array$(T: typeid) {
+
+  pub fun new();
+  pub fun grow();
+  pub fun from();
+  pub fun push();
+  pub fun pop();
+  pub fun append();
+  pub fun find();
+  pub fun get();
+
+  // operator &[]
+  // operator []=
+}
+
+// Example usage
+
+let nums: Array(int) = Array(int)::new([1, 1, 2, 3, 5]);
+nums.push(8);
+nums.append([13, 21, 34, 55]);
+foreach num in nums {
+  do_something(nums);
+}
+
+io::println(nums); // => "Array(int): [1, 1, 2, 3, 5, 8, 13, 21, 34, 55]"
+
+
+  
+```
 
 
 # Regex
